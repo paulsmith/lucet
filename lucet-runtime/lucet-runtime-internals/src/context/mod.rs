@@ -25,15 +25,15 @@ use xfailure::xbail;
 /// <https://doc.rust-lang.org/nomicon/other-reprs.html#reprpacked>. Since the members are all
 /// `u64`, this should be fine?
 #[repr(C)]
-pub struct GpRegs {
-    rbx: u64,
+pub(crate) struct GpRegs {
+    pub rbx: u64,
     pub rsp: u64,
-    rbp: u64,
-    rdi: u64,
-    r12: u64,
-    r13: u64,
-    r14: u64,
-    r15: u64,
+    pub rbp: u64,
+    pub rdi: u64,
+    pub r12: u64,
+    pub r13: u64,
+    pub r14: u64,
+    pub r15: u64,
 }
 
 impl GpRegs {
@@ -64,15 +64,15 @@ impl GpRegs {
 /// <https://doc.rust-lang.org/nomicon/other-reprs.html#reprpacked>. Since the members are all
 /// `__m128`, this should be fine?
 #[repr(C)]
-struct FpRegs {
-    xmm0: __m128,
-    xmm1: __m128,
-    xmm2: __m128,
-    xmm3: __m128,
-    xmm4: __m128,
-    xmm5: __m128,
-    xmm6: __m128,
-    xmm7: __m128,
+pub(crate) struct FpRegs {
+    pub xmm0: __m128,
+    pub xmm1: __m128,
+    pub xmm2: __m128,
+    pub xmm3: __m128,
+    pub xmm4: __m128,
+    pub xmm5: __m128,
+    pub xmm6: __m128,
+    pub xmm7: __m128,
 }
 
 impl FpRegs {
@@ -110,8 +110,8 @@ impl FpRegs {
 /// that pointer becomes invalid, and the behavior of returning from that context becomes undefined.
 #[repr(C, align(64))]
 pub struct Context {
-    pub gpr: GpRegs,
-    fpr: FpRegs,
+    pub(crate) gpr: GpRegs,
+    pub(crate) fpr: FpRegs,
     retvals_gp: [u64; 2],
     retval_fp: __m128,
     sigset: signal::SigSet,

@@ -31,6 +31,7 @@ macro_rules! host_tests {
             static ref NESTED_INNER: Mutex<()> = Mutex::new(());
             static ref NESTED_REGS_OUTER: Mutex<()> = Mutex::new(());
             static ref NESTED_REGS_INNER: Mutex<()> = Mutex::new(());
+            static ref FAULT_UNWIND: Mutex<()> = Mutex::new(());
         }
 
         #[inline]
@@ -189,6 +190,25 @@ macro_rules! host_tests {
             }
 
             #[no_mangle]
+            pub unsafe extern "C" fn hostcall_fault_unwind(
+                &mut vmctx,
+                cb_idx: u32,
+            ) -> () {
+                let lock = FAULT_UNWIND.lock().unwrap();
+
+                let func = vmctx
+                    .get_func_from_idx(0, cb_idx)
+                    .expect("can get function by index");
+                let func = std::mem::transmute::<usize, extern "C" fn(*mut lucet_vmctx)>(
+                    func.ptr.as_usize(),
+                );
+                let vmctx_raw = vmctx.as_raw();
+                func(vmctx_raw);
+
+                drop(lock);
+            }
+
+            #[no_mangle]
             pub unsafe extern "C" fn hostcall_bad_borrow(
                 &mut vmctx,
             ) -> bool {
@@ -221,24 +241,6 @@ macro_rules! host_tests {
                 drop(vmctx2);
 
                 res
-            }
-
-            #[no_mangle]
-            pub unsafe extern "C" fn hostcall_print_host_rsp(
-                &mut vmctx,
-            ) -> () {
-                use lucet_runtime_internals::instance::HOST_CTX;
-                use lucet_runtime_internals::vmctx::VmctxInternal;
-                let inst = vmctx.instance();
-                eprintln!("guest's context at {:p}", &inst.ctx);
-                inst.alloc.slot.as_ref().map(|slot| {
-                    eprintln!("guest's stack highest addr = {:p}", slot.stack_top());
-                });
-                HOST_CTX.with(|host_ctx| {
-                    let ctx = host_ctx.get();
-                    eprintln!("host's context at {:p}", ctx);
-                    eprintln!("host's stored rsp = 0x{:x}", (*ctx).gpr.rsp);
-                });
             }
 
             #[no_mangle]
@@ -470,6 +472,19 @@ macro_rules! host_tests {
             );
         }
 
+        /// Ensures that hostcall stack frames get unwound when a fault occurs in guest code.
+        #[test]
+        fn fault_unwind() {
+            let module = test_module_c("host", "fault_unwind.c").expect("build and load module");
+            let region = TestRegion::create(1, &Limits::default()).expect("region can be created");
+            let mut inst = region
+                .new_instance(module)
+                .expect("instance can be created");
+            inst.run("entrypoint", &[]).unwrap_err();
+            inst.reset().unwrap();
+            assert!(FAULT_UNWIND.is_poisoned());
+        }
+
         #[test]
         fn run_fpe() {
             let module = test_module_c("host", "fpe.c").expect("build and load module");
@@ -486,31 +501,6 @@ macro_rules! host_tests {
                     panic!("unexpected result: {:?}", res);
                 }
             }
-        }
-
-        #[test]
-        fn run_hostcall_print_host_rsp() {
-            extern "C" {
-                fn hostcall_print_host_rsp(vmctx: *mut lucet_vmctx);
-            }
-
-            unsafe extern "C" fn f(vmctx: *mut lucet_vmctx) {
-                hostcall_print_host_rsp(vmctx);
-            }
-
-            let module = MockModuleBuilder::new()
-                .with_export_func(MockExportBuilder::new(
-                    "f",
-                    FunctionPointer::from_usize(f as usize),
-                ))
-                .build();
-
-            let region = TestRegion::create(1, &Limits::default()).expect("region can be created");
-            let mut inst = region
-                .new_instance(module)
-                .expect("instance can be created");
-
-            inst.run("f", &[]).unwrap();
         }
 
         #[test]
