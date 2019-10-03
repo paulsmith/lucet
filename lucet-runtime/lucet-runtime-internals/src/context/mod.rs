@@ -714,4 +714,8 @@ extern "C" {
     ///
     /// Never returns because the current context is discarded.
     pub(crate) fn lucet_context_set(to: *const Context) -> !;
+
+    /// Just a stub to have a single address we can unwind through, for stack alignment when we
+    /// need to add a new call frame to an existing guest
+    pub(crate) fn unwind_stub();
 }
