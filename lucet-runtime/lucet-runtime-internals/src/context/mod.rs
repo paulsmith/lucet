@@ -115,6 +115,7 @@ pub struct Context {
     retvals_gp: [u64; 2],
     retval_fp: __m128,
     sigset: signal::SigSet,
+    pub(crate) stop_addr: Option<u64>,
 }
 
 impl Context {
@@ -126,6 +127,7 @@ impl Context {
             retvals_gp: [0; 2],
             retval_fp: unsafe { _mm_setzero_ps() },
             sigset: signal::SigSet::empty(),
+            stop_addr: None,
         }
     }
 }

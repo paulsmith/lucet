@@ -31,7 +31,8 @@ macro_rules! host_tests {
             static ref NESTED_INNER: Mutex<()> = Mutex::new(());
             static ref NESTED_REGS_OUTER: Mutex<()> = Mutex::new(());
             static ref NESTED_REGS_INNER: Mutex<()> = Mutex::new(());
-            static ref FAULT_UNWIND: Mutex<()> = Mutex::new(());
+            static ref BAD_ACCESS_UNWIND: Mutex<()> = Mutex::new(());
+            static ref STACK_OVERFLOW_UNWIND: Mutex<()> = Mutex::new(());
         }
 
         #[inline]
@@ -190,11 +191,30 @@ macro_rules! host_tests {
             }
 
             #[no_mangle]
-            pub unsafe extern "C" fn hostcall_fault_unwind(
+            pub unsafe extern "C" fn hostcall_stack_overflow_unwind(
                 &mut vmctx,
                 cb_idx: u32,
             ) -> () {
-                let lock = FAULT_UNWIND.lock().unwrap();
+                let lock = STACK_OVERFLOW_UNWIND.lock().unwrap();
+
+                let func = vmctx
+                    .get_func_from_idx(0, cb_idx)
+                    .expect("can get function by index");
+                let func = std::mem::transmute::<usize, extern "C" fn(*mut lucet_vmctx)>(
+                    func.ptr.as_usize(),
+                );
+                let vmctx_raw = vmctx.as_raw();
+                func(vmctx_raw);
+
+                drop(lock);
+            }
+
+            #[no_mangle]
+            pub unsafe extern "C" fn hostcall_bad_access_unwind(
+                &mut vmctx,
+                cb_idx: u32,
+            ) -> () {
+                let lock = BAD_ACCESS_UNWIND.lock().unwrap();
 
                 let func = vmctx
                     .get_func_from_idx(0, cb_idx)
@@ -474,15 +494,29 @@ macro_rules! host_tests {
 
         /// Ensures that hostcall stack frames get unwound when a fault occurs in guest code.
         #[test]
-        fn fault_unwind() {
+        fn bad_access_unwind() {
             let module = test_module_c("host", "fault_unwind.c").expect("build and load module");
             let region = TestRegion::create(1, &Limits::default()).expect("region can be created");
             let mut inst = region
                 .new_instance(module)
                 .expect("instance can be created");
-            inst.run("entrypoint", &[]).unwrap_err();
+            inst.run("bad_access", &[]).unwrap_err();
             inst.reset().unwrap();
-            assert!(FAULT_UNWIND.is_poisoned());
+            assert!(BAD_ACCESS_UNWIND.is_poisoned());
+        }
+
+        /// Ensures that hostcall stack frames get unwound even when a stack overflow occurs in
+        /// guest code.
+        #[test]
+        fn stack_overflow_unwind() {
+            let module = test_module_c("host", "fault_unwind.c").expect("build and load module");
+            let region = TestRegion::create(1, &Limits::default()).expect("region can be created");
+            let mut inst = region
+                .new_instance(module)
+                .expect("instance can be created");
+            inst.run("stack_overflow", &[]).unwrap_err();
+            inst.reset().unwrap();
+            assert!(STACK_OVERFLOW_UNWIND.is_poisoned());
         }
 
         #[test]
