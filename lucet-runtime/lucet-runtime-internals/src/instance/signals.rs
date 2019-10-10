@@ -180,7 +180,7 @@ extern "C" fn handle_signal(signum: c_int, siginfo_ptr: *mut siginfo_t, ucontext
         let trapcode = inst.module.lookup_trapcode(rip);
 
         let behavior = (inst.signal_handler)(inst, &trapcode, signum, siginfo_ptr, ucontext_ptr);
-        let switch_to_host = match behavior {
+        match behavior {
             SignalBehavior::Continue => {
                 // return to the guest context without making any modifications to the instance
                 false
@@ -220,15 +220,7 @@ extern "C" fn handle_signal(signum: c_int, siginfo_ptr: *mut siginfo_t, ucontext
                 };
                 true
             }
-        };
-        if switch_to_host {
-            // use the ucontext to fill in the fields of the guest context; we can't use
-            // `Context::swap()` here because then we'd swap back to the signal handler instead of
-            // the point in the guest that caused the fault
-            ctx.save_to_context(&mut inst.ctx);
-            inst.ctx.stop_addr = Some(rip as u64);
         }
-        switch_to_host
     });
 
     if switch_to_host {
