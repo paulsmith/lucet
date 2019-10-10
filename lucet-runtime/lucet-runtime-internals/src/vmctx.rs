@@ -365,6 +365,9 @@ impl Vmctx {
             expecting: expecting as Box<dyn Any>,
         };
         HOST_CTX.with(|host_ctx| unsafe { Context::swap(&mut inst.ctx, &mut *host_ctx.get()) });
+        if let Some(td) = inst.pending_termination.take() {
+            panic!(td);
+        }
     }
 
     /// Take and return the value passed to

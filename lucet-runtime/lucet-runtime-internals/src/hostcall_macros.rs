@@ -53,12 +53,9 @@ macro_rules! lucet_hostcalls {
 
                 #[allow(unused_imports)]
                 use lucet_runtime_internals::vmctx::VmctxInternal;
-                $crate::vmctx::Vmctx::from_raw(vmctx_raw).instance_mut().begin_hostcall();
-
-                let res = hostcall_impl(&mut $crate::vmctx::Vmctx::from_raw(vmctx_raw), $( $arg ),*);
-
-                $crate::vmctx::Vmctx::from_raw(vmctx_raw).instance_mut().end_hostcall();
-
+                let res = $crate::vmctx::Vmctx::from_raw(vmctx_raw).instance_mut().in_hostcall(|| {
+                    hostcall_impl(&mut $crate::vmctx::Vmctx::from_raw(vmctx_raw), $( $arg ),*)
+                });
                 res
             }
         )*
