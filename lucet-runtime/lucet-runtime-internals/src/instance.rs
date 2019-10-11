@@ -13,6 +13,7 @@ use crate::module::{self, FunctionHandle, FunctionPointer, Global, GlobalValue, 
 use crate::region::RegionInternal;
 use crate::val::{UntypedRetVal, Val};
 use crate::WASM_PAGE_SIZE;
+use backtrace::Backtrace;
 use libc::{c_void, siginfo_t, uintptr_t};
 use lucet_module::InstanceRuntimeData;
 use memoffset::offset_of;
@@ -914,6 +915,7 @@ impl Instance {
                 mut details,
                 siginfo,
                 context,
+                full_backtrace,
             } => {
                 // Sandbox is no longer runnable. It's unsafe to determine all error details in the signal
                 // handler, so we fill in extra details here.
@@ -924,11 +926,15 @@ impl Instance {
                     .module
                     .addr_details(details.rip_addr as *const c_void)?;
 
+                details.backtrace = Some(self.module.resolve_and_trim(&full_backtrace));
+                // dbg!(&details.backtrace);
+
                 // fill the state back in with the updated details in case fatal handlers need it
                 self.state = State::Faulted {
                     details: details.clone(),
                     siginfo,
                     context,
+                    full_backtrace,
                 };
 
                 if details.fatal {
@@ -1109,6 +1115,8 @@ pub struct FaultDetails {
     pub rip_addr: uintptr_t,
     /// Extra information about the instruction pointer's location, if available.
     pub rip_addr_details: Option<module::AddrDetails>,
+    /// Backtrace of the frames from the guest stack, if available.
+    pub backtrace: Option<Backtrace>,
 }
 
 impl std::fmt::Display for FaultDetails {

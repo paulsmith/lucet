@@ -174,12 +174,12 @@ impl<'a> ModuleDecls<'a> {
                 (None, None) => {
                     // No import or export for this function. It's local, and we have to make up a
                     // name.
-                    decls.declare_function(
-                        clif_module,
-                        format!("guest_func_{}", ix),
-                        Linkage::Local,
-                        func_index,
-                    )?;
+                    let name = if let Some(Some(name)) = decls.info.function_names.get(func_index) {
+                        format!("guest_func_{}", name)
+                    } else {
+                        format!("guest_func_{}", ix)
+                    };
+                    decls.declare_function(clif_module, name, Linkage::Local, func_index)?;
                 }
             }
         }

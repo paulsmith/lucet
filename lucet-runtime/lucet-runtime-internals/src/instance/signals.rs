@@ -5,6 +5,7 @@ use crate::instance::{
     HOST_CTX,
 };
 use crate::sysdeps::UContextPtr;
+use backtrace::Backtrace;
 use lazy_static::lazy_static;
 use libc::{c_int, c_void, siginfo_t, SIGBUS, SIGSEGV};
 use lucet_module::TrapCode;
@@ -214,9 +215,11 @@ extern "C" fn handle_signal(signum: c_int, siginfo_ptr: *mut siginfo_t, ucontext
                         // Details set to `None` here: have to wait until `verify_trap_safety` to
                         // fill in these details, because access may not be signal safe.
                         rip_addr_details: None,
+                        backtrace: None,
                     },
                     siginfo,
                     context: ctx.into(),
+                    full_backtrace: Backtrace::new_unresolved(),
                 };
                 true
             }
