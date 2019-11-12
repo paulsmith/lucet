@@ -18,8 +18,7 @@ path = "src/main.rs"
 
 [dependencies]
 clap = "2"
-failure = "0.1"
-xfailure = "0.1"
+thiserror = "1.0"
 heck = "0.3"
 lucetc = { path = "../lucetc" }
 lucet-module = { path = "../lucet-module" }

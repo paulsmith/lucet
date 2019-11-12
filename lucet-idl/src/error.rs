@@ -1,21 +1,25 @@
+extern crate thiserror;
+
 use crate::parser;
 use crate::Location;
 use std::io;
+use thiserror::Error;
 
-#[derive(Debug, Fail)]
+#[derive(Debug, Error)]
 pub enum IDLError {
-    #[fail(display = "Internal error: {}", _0)]
+    #[error("Internal error: {0}")]
     InternalError(&'static str),
-    #[fail(display = "Incorrect usage: {}", _0)]
+    #[error("Incorrect usage: {0}")]
     UsageError(String),
-    #[fail(display = "{}", _0)]
-    ParseError(#[cause] parser::ParseError),
-    #[fail(display = "{}", _0)]
-    ValidationError(#[cause] ValidationError),
-    #[fail(display = "{}", _0)]
-    Io(#[cause] io::Error),
+    #[error("{0}")]
+    ParseError(#[from] parser::ParseError),
+    #[error("{0}")]
+    ValidationError(#[from] ValidationError),
+    #[error("{0}")]
+    Io(#[from] io::Error),
 }
 
+/*
 impl From<io::Error> for IDLError {
     fn from(e: io::Error) -> Self {
         IDLError::Io(e)
@@ -33,42 +37,43 @@ impl From<ValidationError> for IDLError {
         IDLError::ValidationError(e)
     }
 }
+*/
 
-#[derive(Debug, PartialEq, Eq, Clone, Fail)]
+#[derive(Debug, PartialEq, Eq, Clone, Error)]
 pub enum ValidationError {
-    #[fail(display = "Redefinition of name `{}`", name)]
+    #[error("Redefinition of name `{name}`")]
     NameAlreadyExists {
         name: String,
         at_location: Location,
         previous_location: Location,
     },
-    #[fail(display = "Use of unknown name `{}`", name)]
+    #[error("Use of unknown name `{name}`")]
     NameNotFound {
         name: String,
         use_location: Location,
     },
-    #[fail(display = "Empty definition for `{}`", name)]
+    #[error("Empty definition for `{name}`")]
     Empty { name: String, location: Location },
-    #[fail(display = "Infinite definition for `{}`", name)]
+    #[error("Infinite definition for `{name}`")]
     Infinite { name: String, location: Location },
-    #[fail(display = "Syntax error: expected {}", expected)]
+    #[error("Syntax error: expected {expected}")]
     Syntax {
         expected: &'static str,
         location: Location,
     },
-    #[fail(display = "Name `{}` bound to another sort", name)]
+    #[error("Name `{name}` bound to another sort")]
     NameSortError {
         name: String,
         use_location: Location,
         bound_location: Location,
     },
-    #[fail(display = "Name `{}` already bound", name)]
+    #[error("Name `{name}` already bound")]
     BindingNameAlreadyBound {
         name: String,
         at_location: Location,
         bound_location: Location,
     },
-    #[fail(display = "Binding type error: expected {}", expected)]
+    #[error("Binding type error: expected {expected}")]
     BindingTypeError {
         expected: &'static str,
         location: Location,

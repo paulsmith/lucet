@@ -1,8 +1,5 @@
 #![deny(bare_trait_objects)]
 
-#[macro_use]
-extern crate failure;
-
 mod atoms;
 mod c;
 mod config;
